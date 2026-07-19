@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Прокат — админ</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap');
+
+  :root{
+    --bg:#111417; --surface:#1A1E22; --surface-2:#20252A; --surface-3:#262B31;
+    --ink:#EDEFF0; --ink-soft:#8C949C; --ink-faint:#565D64;
+    --accent:#F5A300; --accent-dark:#D88C00; --accent-soft:rgba(245,163,0,.13);
+    --accent-2:#38A89D; --accent-2-soft:rgba(56,168,157,.14);
+    --warn:#D98324; --warn-soft:rgba(217,131,36,.14);
+    --danger:#E5484D; --danger-soft:rgba(229,72,77,.14);
+    --line:#2A2F35; --line-strong:#3A414A;
+    --radius:14px; --radius-sm:10px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; font-size:15px; line-height:1.4; min-height:100vh; padding-bottom:calc(74px + var(--safe-bottom));}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  h1,h2,h3{font-family:'Chakra Petch',sans-serif; font-weight:600;}
+  button{font-family:inherit; border:none; cursor:pointer; background:none; color:inherit;}
+  input,select,textarea{font-family:inherit; font-size:15px;}
+
+  .power-rail{height:3px; background:linear-gradient(90deg, var(--accent-dark), var(--accent), var(--accent-2));}
+
+  .topbar{position:sticky; top:0; z-index:30; padding:calc(14px + var(--safe-top)) 18px 14px; background:var(--surface); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .brand{display:flex; align-items:center; gap:11px;}
+  .brand-mark{width:36px; height:36px; border-radius:8px; background:var(--surface-3); border:1px solid var(--line-strong); display:flex; align-items:center; justify-content:center; color:var(--accent);}
+  .brand-mark svg{width:18px; height:18px;}
+  .brand-name{font-family:'Chakra Petch',sans-serif; font-size:14.5px; font-weight:700; text-transform:uppercase; letter-spacing:.02em;}
+  .brand-sub{font-size:10.5px; color:var(--ink-faint); margin-top:2px; font-family:'JetBrains Mono',monospace;}
+  .role-badge{font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; padding:5px 10px; border-radius:6px; background:var(--accent-soft); color:var(--accent); text-transform:uppercase; letter-spacing:.04em;}
+
+  .screen{padding:16px 16px 8px; display:none;}
+  .screen.active{display:block;}
+  .section-label{display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); font-weight:600; margin:20px 2px 10px;}
+  .section-label:first-child{margin-top:2px;}
+  .section-label::after{content:''; flex:1; height:1px; background:var(--line);}
+  .section-label .count{color:var(--ink-soft); font-weight:700;}
+
+  /* ---------- Tab bar ---------- */
+  .tabbar{position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--surface); border-top:1px solid var(--line); padding:8px 10px calc(8px + var(--safe-bottom)); display:flex; gap:4px;}
+  .tab{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:7px 4px; border-radius:10px; color:var(--ink-faint);}
+  .tab svg{width:20px; height:20px;}
+  .tab span{font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.03em; font-weight:600;}
+  .tab.active{color:var(--accent);}
+
+  /* ---------- Stat mini cards ---------- */
+  .stat-row{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:4px;}
+  .stat-card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 13px;}
+  .stat-card .lbl{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em;}
+  .stat-card .val{font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:700; margin-top:4px; color:var(--accent);}
+
+  /* ---------- Op rows (выдать/принять) ---------- */
+  .op-row{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:13px 14px; margin-bottom:8px;}
+  .op-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .op-model{font-weight:700; font-size:14px;}
+  .op-client{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .op-dates{font-size:11px; color:var(--ink-faint); margin-top:3px; font-family:'JetBrains Mono',monospace;}
+  .method-tag{font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; padding:3px 8px; border-radius:5px; text-transform:uppercase; white-space:nowrap;}
+  .method-tag.pickup{background:var(--accent-2-soft); color:var(--accent-2);}
+  .method-tag.delivery{background:var(--accent-soft); color:var(--accent);}
+  .op-actions{margin-top:11px;}
+  .btn{display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:12px 16px; border-radius:var(--radius-sm); font-size:13.5px; font-weight:700; font-family:'Chakra Petch',sans-serif; text-transform:uppercase; letter-spacing:.03em;}
+  .btn-primary{background:var(--accent); color:#15130A;}
+  .btn-primary:disabled{background:var(--surface-3); color:var(--ink-faint);}
+  .btn-ghost{background:var(--surface-3); color:var(--ink); border:1px solid var(--line-strong);}
+  .btn-danger-outline{background:transparent; color:var(--danger); border:1px solid var(--danger);}
+
+  .empty-state{text-align:center; padding:44px 20px; color:var(--ink-faint);}
+  .empty-state svg{width:34px; height:34px; margin-bottom:10px; opacity:.5;}
+
+  /* ---------- Inventory list ---------- */
+  .model-group{margin-bottom:16px;}
+  .model-group-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:0 2px;}
+  .model-group-head .name{font-weight:700; font-size:13.5px;}
+  .model-group-head .ratio{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--ink-soft);}
+  .unit-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:6px;}
+  .unit-chip{aspect-ratio:1; border-radius:8px; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; border:1px solid var(--line-strong);}
+  .unit-chip.free{background:var(--accent-2-soft); color:var(--accent-2);}
+  .unit-chip.rented{background:var(--surface-3); color:var(--ink-soft);}
+  .unit-chip.repair{background:var(--danger-soft); color:var(--danger);}
+
+  /* ---------- All bookings ---------- */
+  .filter-row{display:flex; gap:6px; overflow-x:auto; padding:2px 2px 4px; scrollbar-width:none; margin-bottom:6px;}
+  .filter-row::-webkit-scrollbar{display:none;}
+  .fchip{flex:0 0 auto; padding:8px 13px; border-radius:8px; background:var(--surface-2); border:1px solid var(--line); font-size:12px; font-weight:600; color:var(--ink-soft); font-family:'JetBrains Mono',monospace;}
+  .fchip.active{background:var(--accent-soft); color:var(--accent); border-color:var(--accent);}
+  .status-chip{font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; padding:3px 8px; border-radius:5px; white-space:nowrap; text-transform:uppercase;}
+  .status-chip.pending{background:var(--surface-3); color:var(--ink-soft);}
+  .status-chip.active{background:var(--accent-2-soft); color:var(--accent-2);}
+  .status-chip.overdue{background:var(--danger-soft); color:var(--danger);}
+  .status-chip.returned{background:var(--surface-3); color:var(--ink-faint);}
+
+  /* ---------- Sheet / modal (осмотр) ---------- */
+  .sheet-scrim{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:60; opacity:0; pointer-events:none; transition:opacity .2s;}
+  .sheet-scrim.open{opacity:1; pointer-events:auto;}
+  .sheet{position:fixed; left:0; right:0; bottom:0; z-index:61; background:var(--bg); border-radius:18px 18px 0 0; border-top:1px solid var(--line-strong); max-height:88vh; display:flex; flex-direction:column; transform:translateY(100%); transition:transform .28s cubic-bezier(.2,.8,.2,1);}
+  .sheet.open{transform:translateY(0);}
+  .sheet-handle{width:36px; height:4px; border-radius:3px; background:var(--line-strong); margin:10px auto 4px;}
+  .sheet-head{padding:6px 18px 12px; display:flex; align-items:center; justify-content:space-between;}
+  .sheet-head h3{font-family:'Chakra Petch',sans-serif; text-transform:uppercase; letter-spacing:.02em; font-size:15px; margin:0;}
+  .icon-btn{width:36px; height:36px; border-radius:9px; background:var(--surface-3); border:1px solid var(--line-strong); display:flex; align-items:center; justify-content:center;}
+  .icon-btn svg{width:16px; height:16px;}
+  .sheet-body{overflow-y:auto; padding:0 18px calc(20px + var(--safe-bottom));}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:600; color:var(--ink-soft); margin-bottom:7px; text-transform:uppercase; letter-spacing:.03em;}
+  .field textarea, .field input{width:100%; padding:12px 13px; border-radius:var(--radius-sm); border:1px solid var(--line-strong); background:var(--surface-3); color:var(--ink);}
+  .field textarea:focus, .field input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
+
+  .unit-pick-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:16px;}
+  .unit-pick{aspect-ratio:1; border-radius:9px; border:1.5px solid var(--line-strong); background:var(--surface-2); display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; color:var(--ink-soft);}
+  .unit-pick.selected{border-color:var(--accent); background:var(--accent-soft); color:var(--accent);}
+  .unit-pick:disabled{opacity:.3;}
+
+  .toggle-row{display:flex; gap:8px; margin-bottom:14px;}
+  .toggle-opt{flex:1; padding:13px; border-radius:var(--radius-sm); border:1.5px solid var(--line-strong); background:var(--surface-2); text-align:center; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; gap:7px;}
+  .toggle-opt svg{width:16px; height:16px;}
+  .toggle-opt.ok.selected{border-color:var(--accent-2); background:var(--accent-2-soft); color:var(--accent-2);}
+  .toggle-opt.bad.selected{border-color:var(--danger); background:var(--danger-soft); color:var(--danger);}
+
+  .loading-screen{position:fixed; inset:0; background:var(--bg); z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;}
+  .spinner{width:24px; height:24px; border-radius:4px; border:3px solid var(--line-strong); border-top-color:var(--accent); animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-screen span{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.06em;}
+
+  .toast{position:fixed; left:16px; right:calc(16px); bottom:calc(84px + var(--safe-bottom)); background:var(--surface-3); border:1px solid var(--line-strong); color:var(--ink); padding:13px 16px; border-radius:10px; font-size:13.5px; font-weight:600; z-index:200; transform:translateY(120%); transition:transform .25s ease; display:flex; align-items:center; gap:8px;}
+  .toast.show{transform:translateY(0);}
+</style>
+</head>
+<body>
+<div class="power-rail"></div>
+<div class="loading-screen" id="loadingScreen"><div class="spinner"></div><span>Инициализация…</span></div>
+
+<div id="app" style="display:none;">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+      <div><div class="brand-name" id="brandName">Прокат-Инструмент</div><div class="brand-sub">СМЕНА · <span id="todayDate"></span></div></div>
+    </div>
+    <div class="role-badge">АДМИН</div>
+  </div>
+
+  <!-- ===================== СЕГОДНЯ ===================== -->
+  <div class="screen active" id="screen-today">
+    <div class="stat-row">
+      <div class="stat-card"><div class="lbl">Выдать сегодня</div><div class="val" id="statHandout">0</div></div>
+      <div class="stat-card"><div class="lbl">Принять сегодня</div><div class="val" id="statReturn">0</div></div>
+    </div>
+
+    <div class="section-label">Выдать <span class="count" id="handoutCount"></span></div>
+    <div id="handoutList"></div>
+
+    <div class="section-label">Принять <span class="count" id="returnCount"></span></div>
+    <div id="returnList"></div>
+  </div>
+
+  <!-- ===================== ИНВЕНТАРЬ ===================== -->
+  <div class="screen" id="screen-inventory">
+    <div class="section-label">Единицы по моделям</div>
+    <div id="inventoryList"></div>
+  </div>
+
+  <!-- ===================== БРОНИ ===================== -->
+  <div class="screen" id="screen-bookings">
+    <div class="filter-row" id="filterRow"></div>
+    <div id="bookingsAllList"></div>
+  </div>
+
+  <div class="tabbar">
+    <button class="tab active" data-screen="today">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+      <span>Сегодня</span>
+    </button>
+    <button class="tab" data-screen="inventory">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span>Инвентарь</span>
+    </button>
+    <button class="tab" data-screen="bookings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Брони</span>
+    </button>
+  </div>
+</div>
+
+<!-- ===================== SHEET: ОСМОТР ПРИ ВЫДАЧЕ/ВОЗВРАТЕ ===================== -->
+<div class="sheet-scrim" id="sheetScrim"></div>
+<div class="sheet" id="opSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <h3 id="opSheetTitle">Выдача</h3>
+    <button class="icon-btn" id="opSheetClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="sheet-body" id="opSheetBody"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================ CONFIG ============================================================ */
+const CONFIG = { businessName: "Прокат-Инструмент", apiUrl: "PASTE_APPS_SCRIPT_URL_HERE" };
+
+/* ============================================================ MOCK DATA ============================================================ */
+const MOCK_MODELS = [
+  { id: "m1", name: "Перфоратор Bosch GBH 2-26", totalQty: 5 },
+  { id: "m2", name: "Болгарка Makita 230мм", totalQty: 4 },
+  { id: "m3", name: "Бетономешалка 130л", totalQty: 2 },
+  { id: "m4", name: "Строительные леса 4×2м", totalQty: 3 },
+  { id: "m5", name: "Триммер бензиновый", totalQty: 6 },
+];
+
+function genUnits() {
+  const units = [];
+  const seedStatuses = { m1: ["rented","rented","free","free","repair"], m2: ["rented","free","free","free"], m3: ["rented","free"], m4: ["free","free","free"], m5: ["rented","rented","free","free","free","free"] };
+  MOCK_MODELS.forEach(m => {
+    const statuses = seedStatuses[m.id] || Array(m.totalQty).fill("free");
+    statuses.forEach((st, i) => units.push({ id: `${m.id}-${i+1}`, modelId: m.id, num: i+1, status: st }));
+  });
+  return units;
+}
+let MOCK_UNITS = genUnits();
+
+let MOCK_BOOKINGS = [
+  { id: "ЗК-1058", modelId: "m1", model: "Перфоратор Bosch GBH 2-26", client: "Игорь Савчук", phone: "+375 29 111 22 33", from: "2026-07-20", to: "2026-07-23", method: "pickup", status: "pending_handout" },
+  { id: "ЗК-1059", modelId: "m4", model: "Строительные леса 4×2м", client: "Наталья Дрозд", phone: "+375 33 444 55 66", from: "2026-07-20", to: "2026-07-25", method: "delivery", address: "ул. Сурганова, 12, кв. 5", status: "pending_handout" },
+  { id: "ЗК-1051", modelId: "m5", model: "Триммер бензиновый", client: "Пётр Мельник", phone: "+375 25 777 88 99", from: "2026-07-17", to: "2026-07-20", method: "delivery", address: "ул. Немига, 3", status: "pending_return" },
+  { id: "ЗК-1046", modelId: "m2", model: "Болгарка Makita 230мм", client: "Сергей Ким", phone: "+375 29 000 11 22", from: "2026-07-16", to: "2026-07-20", method: "pickup", status: "pending_return" },
+  { id: "ЗК-1042", modelId: "m2", model: "Болгарка Makita 230мм", client: "Анна Реут", phone: "+375 29 222 33 44", from: "2026-07-14", to: "2026-07-17", method: "pickup", status: "returned" },
+  { id: "ЗК-1039", modelId: "m1", model: "Перфоратор Bosch GBH 2-26", client: "Дмитрий Волк", phone: "+375 33 555 66 77", from: "2026-07-10", to: "2026-07-14", method: "delivery", address: "ул. Козлова, 8", status: "overdue" },
+  { id: "ЗК-1035", modelId: "m3", model: "Бетономешалка 130л", client: "Олег Юрчик", phone: "+375 25 333 22 11", from: "2026-07-08", to: "2026-07-12", method: "pickup", status: "returned" },
+];
+
+/* ============================================================ api(action, payload) ============================================================ */
+function api(action, payload) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      switch (action) {
+        case "getToday": {
+          const handout = MOCK_BOOKINGS.filter(b => b.status === "pending_handout");
+          const ret = MOCK_BOOKINGS.filter(b => b.status === "pending_return");
+          resolve({ ok: true, handout, ret });
+          break;
+        }
+        case "getUnits":
+          resolve({ ok: true, units: MOCK_UNITS, models: MOCK_MODELS });
+          break;
+        case "getFreeUnits": {
+          const free = MOCK_UNITS.filter(u => u.modelId === payload.modelId && u.status === "free");
+          resolve({ ok: true, units: free });
+          break;
+        }
+        case "checkOut": {
+          const b = MOCK_BOOKINGS.find(x => x.id === payload.bookingId);
+          b.status = "active"; b.unitId = payload.unitId;
+          const u = MOCK_UNITS.find(x => x.id === payload.unitId);
+          if (u) u.status = "rented";
+          resolve({ ok: true });
+          break;
+        }
+        case "checkIn": {
+          const b = MOCK_BOOKINGS.find(x => x.id === payload.bookingId);
+          b.status = "returned";
+          const u = MOCK_UNITS.find(x => x.id === b.unitId);
+          if (u) u.status = payload.damaged ? "repair" : "free";
+          resolve({ ok: true });
+          break;
+        }
+        case "setUnitStatus": {
+          const u = MOCK_UNITS.find(x => x.id === payload.unitId);
+          if (u) u.status = payload.status;
+          resolve({ ok: true });
+          break;
+        }
+        case "getAllBookings":
+          resolve({ ok: true, bookings: MOCK_BOOKINGS });
+          break;
+        default:
+          resolve({ ok: false, error: "unknown action" });
+      }
+    }, 220);
+  });
+}
+
+/* ============================================================ TELEGRAM ============================================================ */
+const tg = window.Telegram ? window.Telegram.WebApp : null;
+function haptic(style) { if (tg && tg.HapticFeedback) { if (["success","error","warning"].includes(style)) tg.HapticFeedback.notificationOccurred(style); else tg.HapticFeedback.impactOccurred(style || "light"); } }
+function setChrome() { if (!tg) return; const s = getComputedStyle(document.body); try { tg.setHeaderColor(s.getPropertyValue("--surface").trim()); tg.setBackgroundColor(s.getPropertyValue("--bg").trim()); } catch(e){} }
+function initTelegram() { if (!tg) return; tg.ready(); tg.expand(); setChrome(); }
+
+function fmtDate(iso){ const d = new Date(iso); return d.toLocaleDateString("ru-RU",{day:"2-digit",month:"2-digit"}); }
+function toast(msg){ const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"), 2200); }
+
+/* ============================================================ TABS ============================================================ */
+document.querySelectorAll(".tab").forEach(el => el.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("screen-" + el.dataset.screen).classList.add("active");
+  haptic("light");
+  if (el.dataset.screen === "inventory") loadInventory();
+  if (el.dataset.screen === "bookings") loadAllBookings();
+}));
+
+/* ============================================================ СЕГОДНЯ ============================================================ */
+async function loadToday() {
+  const res = await api("getToday", {});
+  document.getElementById("statHandout").textContent = res.handout.length;
+  document.getElementById("statReturn").textContent = res.ret.length;
+  document.getElementById("handoutCount").textContent = `(${res.handout.length})`;
+  document.getElementById("returnCount").textContent = `(${res.ret.length})`;
+
+  const hList = document.getElementById("handoutList");
+  hList.innerHTML = res.handout.length ? res.handout.map(b => opRowHtml(b, "handout")).join("") :
+    `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><div>Выдач на сегодня нет</div></div>`;
+
+  const rList = document.getElementById("returnList");
+  rList.innerHTML = res.ret.length ? res.ret.map(b => opRowHtml(b, "return")).join("") :
+    `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><div>Возвратов на сегодня нет</div></div>`;
+
+  document.querySelectorAll("[data-op]").forEach(el => el.addEventListener("click", () => openOpSheet(el.dataset.op, el.dataset.id)));
+}
+
+function opRowHtml(b, kind) {
+  return `
+  <div class="op-row">
+    <div class="op-top">
+      <div>
+        <div class="op-model">${b.model}</div>
+        <div class="op-client">${b.client} · ${b.phone}</div>
+        <div class="op-dates">${fmtDate(b.from)} — ${fmtDate(b.to)} · ${b.id}</div>
+      </div>
+      <span class="method-tag ${b.method}">${b.method === "pickup" ? "Самовывоз" : "Доставка"}</span>
+    </div>
+    <div class="op-actions">
+      <button class="btn btn-primary" data-op="${kind}" data-id="${b.id}">${kind === "handout" ? "Оформить выдачу" : "Оформить возврат"}</button>
+    </div>
+  </div>`;
+}
+
+/* ============================================================ OP SHEET (осмотр + выбор единицы) ============================================================ */
+let opState = { kind: null, booking: null, unitId: null, condition: null, comment: "" };
+
+async function openOpSheet(kind, bookingId) {
+  const res = await api("getAllBookings", {});
+  const booking = res.bookings.find(b => b.id === bookingId);
+  opState = { kind, booking, unitId: null, condition: null, comment: "" };
+  document.getElementById("opSheetTitle").textContent = kind === "handout" ? "Выдача — осмотр" : "Возврат — осмотр";
+  document.getElementById("sheetScrim").classList.add("open");
+  document.getElementById("opSheet").classList.add("open");
+  haptic("light");
+  await renderOpSheet();
+}
+function closeOpSheet() { document.getElementById("sheetScrim").classList.remove("open"); document.getElementById("opSheet").classList.remove("open"); }
+
+async function renderOpSheet() {
+  const body = document.getElementById("opSheetBody");
+  const b = opState.booking;
+  let unitPickerHtml = "";
+  if (opState.kind === "handout") {
+    const res = await api("getFreeUnits", { modelId: b.modelId });
+    unitPickerHtml = `
+      <div class="field"><label>Выберите единицу (${res.units.length} своб.)</label></div>
+      <div class="unit-pick-grid" id="unitGrid">
+        ${res.units.map(u => `<button class="unit-pick" data-unit="${u.id}">№${u.num}</button>`).join("")}
+      </div>
+    `;
+  }
+  body.innerHTML = `
+    <div class="field"><label>Заявка</label>
+      <div style="font-weight:700; font-size:14.5px;">${b.model}</div>
+      <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${b.client} · ${b.id}</div>
+    </div>
+    ${unitPickerHtml}
+    <div class="field"><label>Состояние инструмента</label>
+      <div class="toggle-row">
+        <button class="toggle-opt ok" data-cond="ok">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Исправен
+        </button>
+        <button class="toggle-opt bad" data-cond="bad">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg> Повреждён
+        </button>
+      </div>
+    </div>
+    <div class="field"><label>Комментарий (если есть повреждения)</label>
+      <textarea id="opComment" rows="2" placeholder="Что именно повреждено / замечания"></textarea>
+    </div>
+    <button class="btn btn-primary" id="opConfirm" disabled>${opState.kind === "handout" ? "Подтвердить выдачу" : "Подтвердить возврат"}</button>
+  `;
+  if (opState.kind === "handout") {
+    document.querySelectorAll("#unitGrid .unit-pick").forEach(el => el.addEventListener("click", () => {
+      document.querySelectorAll("#unitGrid .unit-pick").forEach(x => x.classList.remove("selected"));
+      el.classList.add("selected"); opState.unitId = el.dataset.unit; haptic("light"); updateConfirmState();
+    }));
+  }
+  document.querySelectorAll(".toggle-opt").forEach(el => el.addEventListener("click", () => {
+    document.querySelectorAll(".toggle-opt").forEach(x => x.classList.remove("selected"));
+    el.classList.add("selected"); opState.condition = el.dataset.cond; haptic("light"); updateConfirmState();
+  }));
+  document.getElementById("opComment").addEventListener("input", (e) => { opState.comment = e.target.value; });
+  document.getElementById("opConfirm").addEventListener("click", confirmOp);
+  updateConfirmState();
+}
+
+function updateConfirmState() {
+  const btn = document.getElementById("opConfirm");
+  if (!btn) return;
+  const unitOk = opState.kind === "return" || !!opState.unitId;
+  btn.disabled = !(unitOk && opState.condition);
+}
+
+async function confirmOp() {
+  const btn = document.getElementById("opConfirm");
+  btn.disabled = true; btn.textContent = "Сохраняем…";
+  if (opState.kind === "handout") {
+    await api("checkOut", { bookingId: opState.booking.id, unitId: opState.unitId, condition: opState.condition, comment: opState.comment });
+    toast("Выдача оформлена, договор и чек отправлены клиенту");
+  } else {
+    await api("checkIn", { bookingId: opState.booking.id, damaged: opState.condition === "bad", comment: opState.comment });
+    toast(opState.condition === "bad" ? "Возврат принят, единица отправлена в ремонт" : "Возврат принят");
+  }
+  haptic("success");
+  closeOpSheet();
+  loadToday();
+}
+document.getElementById("opSheetClose").addEventListener("click", closeOpSheet);
+document.getElementById("sheetScrim").addEventListener("click", closeOpSheet);
+
+/* ============================================================ ИНВЕНТАРЬ ============================================================ */
+async function loadInventory() {
+  const res = await api("getUnits", {});
+  const wrap = document.getElementById("inventoryList");
+  wrap.innerHTML = res.models.map(m => {
+    const units = res.units.filter(u => u.modelId === m.id);
+    const free = units.filter(u => u.status === "free").length;
+    return `
+    <div class="model-group">
+      <div class="model-group-head"><div class="name">${m.name}</div><div class="ratio">${free}/${units.length} своб.</div></div>
+      <div class="unit-grid">
+        ${units.map(u => `<button class="unit-chip ${u.status}" data-unit="${u.id}" data-status="${u.status}">№${u.num}</button>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+  wrap.querySelectorAll(".unit-chip").forEach(el => el.addEventListener("click", () => cycleUnitStatus(el)));
+}
+async function cycleUnitStatus(el) {
+  const order = ["free", "repair"]; // ручной переключатель только между "свободна" и "ремонт"; "в аренде" ставится автоматически при выдаче
+  const cur = el.dataset.status;
+  if (cur === "rented") { toast("Единица сейчас в аренде — статус сменится автоматически при возврате"); return; }
+  const next = cur === "free" ? "repair" : "free";
+  await api("setUnitStatus", { unitId: el.dataset.unit, status: next });
+  haptic("light");
+  loadInventory();
+}
+
+/* ============================================================ БРОНИ (все) ============================================================ */
+const STATUS_LABEL = { pending_handout: "К выдаче", pending_return: "К возврату", active: "В аренде", overdue: "Просрочено", returned: "Возвращено" };
+const STATUS_CLASS = { pending_handout: "pending", pending_return: "pending", active: "active", overdue: "overdue", returned: "returned" };
+let bookingsFilter = "all";
+const FILTERS = [
+  { id: "all", name: "ВСЕ" }, { id: "pending_handout", name: "К ВЫДАЧЕ" }, { id: "pending_return", name: "К ВОЗВРАТУ" },
+  { id: "active", name: "В АРЕНДЕ" }, { id: "overdue", name: "ПРОСРОЧЕНО" }, { id: "returned", name: "ЗАКРЫТО" }
+];
+function renderFilters() {
+  const row = document.getElementById("filterRow");
+  row.innerHTML = FILTERS.map(f => `<button class="fchip ${f.id === bookingsFilter ? "active" : ""}" data-f="${f.id}">${f.name}</button>`).join("");
+  row.querySelectorAll(".fchip").forEach(el => el.addEventListener("click", () => { bookingsFilter = el.dataset.f; haptic("light"); loadAllBookings(); }));
+}
+async function loadAllBookings() {
+  renderFilters();
+  const res = await api("getAllBookings", {});
+  const list = bookingsFilter === "all" ? res.bookings : res.bookings.filter(b => b.status === bookingsFilter);
+  const wrap = document.getElementById("bookingsAllList");
+  wrap.innerHTML = list.length ? list.map(b => `
+    <div class="op-row">
+      <div class="op-top">
+        <div>
+          <div class="op-model">${b.model}</div>
+          <div class="op-client">${b.client}</div>
+          <div class="op-dates">${fmtDate(b.from)} — ${fmtDate(b.to)} · ${b.id}</div>
+        </div>
+        <span class="status-chip ${STATUS_CLASS[b.status]}">${STATUS_LABEL[b.status]}</span>
+      </div>
+    </div>`).join("") : `<div class="empty-state">Нет броней с этим статусом</div>`;
+}
+
+/* ============================================================ INIT ============================================================ */
+async function init() {
+  initTelegram();
+  document.getElementById("brandName").textContent = CONFIG.businessName;
+  document.getElementById("todayDate").textContent = new Date().toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
+  await loadToday();
+  document.getElementById("loadingScreen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+}
+init();
+</script>
+</body>
+</html>
